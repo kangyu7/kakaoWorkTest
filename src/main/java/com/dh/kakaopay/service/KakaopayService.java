@@ -4,6 +4,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -16,8 +17,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
 import com.dh.kakaopay.cipher.AES256Util;
+import com.dh.kakaopay.domain.CardCancelInputDto;
 import com.dh.kakaopay.domain.CardData;
-import com.dh.kakaopay.domain.CardInputData;
+import com.dh.kakaopay.domain.CardInputDto;
+import com.dh.kakaopay.domain.CardSearchDto;
 import com.dh.kakaopay.error.KakaopayException;
 import com.dh.kakaopay.packet.CardPacket;
 import com.dh.kakaopay.repository.CardDataRepository;
@@ -36,15 +39,23 @@ public class KakaopayService {
 	CardDataRepository cardDataRepository;
 	
 	@Transactional
-	public CardData save(CardInputData cardInputData) {
+	public Map<String, String> save(CardInputDto cardInputData) {
 		
-		//TODO : validataion
 		CardData cardData = new CardData();
 
 		//관리번호 생성
-		String inspNo = cardDataRepository.getInspNo();
-		if(Tool.isNull(inspNo)) inspNo = "1";
+		String uuid = "";
+		
+		do {
+			
+			uuid = UUID.randomUUID().toString().replace("-", "");
+			uuid = uuid.substring(0,20);
+			
+		} while (cardDataRepository.findOneByinspNo(uuid).isPresent());
+		
+		String inspNo = uuid;
 		cardData.setInspNo(inspNo);
+		cardDataRepository.save(cardData);
 		
 		//부가가치세 체크
 		long vatAmt = cardInputData.getVatAmt();
@@ -73,73 +84,115 @@ public class KakaopayService {
 		cardPacket.addString("", 47);
 		
 		cardData.setCardString(cardPacket.outPacket());
-		return cardDataRepository.save(cardData);
+		cardDataRepository.save(cardData);
+		
+		 Map<String, String> rtnMap = new HashMap<String, String>(); 
+		 rtnMap.put("inspNo", inspNo);
+		 rtnMap.put("cardString", cardPacket.outPacket());
+		 return rtnMap;
 	}
 	
-//	@Transactional
-//	public CardData cancel(CardInputData cardInputData) {
-//		
-//		List<CardData> list = cardDataRepository.findByinspNo(cardInputData.getInspNo());
-//		
-//		if (list.stream().filter(CardData -> CardData.getType() == PAY).count() == 0) {
-//			throw new KakaopayException("결제이력이 없습니다.");
-//		} else {
-//			if (cardInputData.getCancelAmt() == 0) {
-//				throw new KakaopayException("취소금액이 없습니다.");
-//			}
-//			
-//			CardData payCardData = list.stream().filter(CardData -> CardData.getType() == PAY).findFirst().get();
-//			
-//			long payAmt = payCardData.getPayAmt();
-//			long vatAmt = payCardData.getVatAmt();
-//			
-//			long cancelVatAmt = cardInputData.getCancelVatAmt();
-//					
-//			cancelVatAmt = Math.round(cardInputData.getCancelAmt() / 11);
-//			
-//			if(cardInputData.getCancelAmt() > payAmt || cancelVatAmt > vatAmt) {
-//				throw new KakaopayException("결제취소 실패 : 취소 금액이 결제금액을 초과하였습니다. ");
-//			}
-//			
-//			//남은 결제 금액 처리
-//			payCardData.setPayAmt(payAmt - cardInputData.getCancelAmt());
-//			payCardData.setVatAmt(vatAmt - cancelVatAmt);
-//			cardDataRepository.save(payCardData);
-//			
-//			//card String 생성
-//			CardPacket cardPacket = new CardPacket();
-//			cardPacket.addNumber(CardPacket.PACKET_LENGTH-4, 4, "N");
-//			cardPacket.addString(CANCEL, 10);
-//			cardPacket.addString(payCardData.getInspNo(), 20);
-//			cardPacket.addString(payCardData.getCardNo(), 20);
-//			cardPacket.addNumber(payCardData.getLoanYmd(), 2, "O");
-//			cardPacket.addString(payCardData.getExprYm(), 4);
-//			cardPacket.addString(payCardData.getCvc(), 3);
-//			cardPacket.addNumber(cardData.getCancelAmt(), 10, "N");
-//			cardPacket.addNumber(cancelVatAmt, 10, "O");
-//			cardPacket.addString(payCardData.getInspNo(), 20);
-//			cardPacket.addString(payCardData.getCardString(), 300);
-//			cardPacket.addString("", 47);
-//			
-//			//데이터설정
-//			cardData.setType(CANCEL);
-//			cardData.setCardString(cardPacket.outPacket());
-//			cardDataRepository.save(cardData);
-//			
-//			inspNo = payCardData.getInspNo();
-//			cardString = cardPacket.outPacket();
-//		}
-//		
-//		//TODO : 요청결과
-//		Map<String, String> map = new HashMap<>();
-//		map.put("inspNo", inspNo);
-//		map.put("cardString", cardString);
-//		return map;
-//	}
-//
-	public Map<String, String> find(CardInputData cardInputData) {
+	@Transactional
+	public Map<String, String> cancel(CardCancelInputDto cardCancelInputDto) {
 		
-		Optional<CardData> data = cardDataRepository.findOneByinspNo(cardInputData.getInspNo());
+		List<CardData> list = cardDataRepository.findByinspNo(cardCancelInputDto.getInspNo());
+		
+		long payAmt = 0;
+		long vatAmt = 0;
+		long totCancelAmt = 0;
+		long totCancelVatAmt = 0;
+		
+		long cancelAmt = cardCancelInputDto.getCancelAmt();
+		
+		CardData payCardData = null;
+		
+		//결제 금액 및 취소 금액 합산
+		for(CardData cardData : list) {
+			
+			Map<String, String> map = getPacketData(cardData.getCardString());
+			
+			if(PAY.equals(map.get("type"))) {
+				
+				payAmt = Long.parseLong(map.get("payAmt"));
+				vatAmt = Long.parseLong(map.get("vatAmt"));
+				
+				payCardData = cardData;
+				
+			} else if (CANCEL.equals(map.get("type"))) {
+				
+				totCancelAmt += Long.parseLong(map.get("payAmt"));
+				totCancelVatAmt += Long.parseLong(map.get("vatAmt"));
+				
+			}
+			
+		}
+		
+		if(payAmt == 0) throw new KakaopayException("결제이력이 없습니다.");
+		
+		
+		payAmt = payAmt - totCancelAmt;
+		vatAmt = vatAmt - totCancelVatAmt;
+		
+		if(payAmt == 0) throw new KakaopayException("남은 결제 금액이 없습니다.");
+		
+		//부가가치세 계산
+		long cancelVatAmt = 0;
+		
+		if(Tool.isNull(cardCancelInputDto.getCancelVatAmt())) {
+			
+			if((payAmt - cancelAmt) == 0) {
+				cancelVatAmt = vatAmt;
+			} else {
+				cancelVatAmt = Math.round(cardCancelInputDto.getCancelAmt() / 11);
+			}
+			
+		} else {
+			cancelVatAmt = Long.valueOf(cardCancelInputDto.getCancelVatAmt());
+		}
+		
+		if(cancelAmt > payAmt) {
+			throw new KakaopayException("결제취소 실패 : 취소 금액이 결제금액을 초과하였습니다.");
+		}
+		
+		if(cancelVatAmt > vatAmt) {
+			throw new KakaopayException("결제취소 실패 : 취소 부가가치세가 초과하였습니다.");
+		}
+		
+		if(vatAmt - cancelVatAmt > payAmt - cancelAmt) {
+			throw new KakaopayException("결제취소 실패 : 남은부가가치세 금액이 남은금액보다 큽니다.");
+		}
+		
+		//card String 생성
+		Map<String, String> map = getPacketData(payCardData.getCardString());
+		CardPacket cardPacket = new CardPacket();
+		cardPacket.addNumber(CardPacket.PACKET_LENGTH-4, 4, "N");
+		cardPacket.addString(CANCEL, 10);
+		cardPacket.addString(cardCancelInputDto.getInspNo(), 20);
+		cardPacket.addString(map.get("cardNo"), 20);
+		cardPacket.addNumber(Integer.parseInt(map.get("loanYmd")), 2, "O");
+		cardPacket.addString(map.get("exprYm"), 4);
+		cardPacket.addString(map.get("cvc"), 3);
+		cardPacket.addNumber(cancelAmt, 10, "N");
+		cardPacket.addNumber(cancelVatAmt, 10, "O");
+		cardPacket.addString(payCardData.getInspNo(), 20);
+		cardPacket.addString(map.get("encCardData"), 300);
+		cardPacket.addString("", 47);
+		
+		//데이터설정
+		CardData cardData = new CardData();
+		cardData.setInspNo(cardCancelInputDto.getInspNo());
+		cardData.setCardString(cardPacket.outPacket());
+		cardDataRepository.save(cardData);
+		
+		 Map<String, String> rtnMap = new HashMap<String, String>(); 
+		 rtnMap.put("inspNo", cardCancelInputDto.getInspNo());
+		 rtnMap.put("cardString", cardPacket.outPacket());
+		 return rtnMap;
+	}
+
+	public Map<String, String> find(CardSearchDto cardSearchDto) {
+		
+		Optional<CardData> data = cardDataRepository.findOneByinspNo(cardSearchDto.getInspNo());
 		Map<String, String> rtnMap = new HashMap<String, String>();
 		
 		if(data.isPresent()) {

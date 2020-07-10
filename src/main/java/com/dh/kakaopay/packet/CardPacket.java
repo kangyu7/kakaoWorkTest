@@ -14,6 +14,12 @@ public class CardPacket {
 		offset = 0;
 	}
 	
+	public void reset() {
+		outPacketString = new StringBuffer();
+		intPacketString = "";
+		offset = 0;
+	}
+	
 	public void addString(String value, int length) {
 		outPacketString.append(makeStringR(value, length));
 	}
