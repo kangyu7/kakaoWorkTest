@@ -70,9 +70,9 @@ POST /pay HTTP/1.1
 ```
 ```json
 {
-    "cardNo": "",
+    "cardNo": "5388321411654321",
     "exprYm": "0423",
-    "cvc": "563",
+    "cvc": "123",
     "loanYmd" : "0",
     "payAmt" : 11000
 }
@@ -82,8 +82,8 @@ POST /pay HTTP/1.1
 
 ```json
 {
-    "inspNo": "1",
-    "cardString": "tttttt"
+    "inspNo": "daa3849515a34362879e",
+    "cardString": " 446PAYMENT   daa3849515a34362879e5388321411654321    000423123     200000000000909                    7+jgQ9LOauVZ7CGqye/Tnsu6dam87a+DccPjgYpQhc0=,UDtnCWJmyWFA26/So8nruA==,1CP2miRnidxfQhlnXY5CSA==                                                                                                                                                                                                                                                             "
 }
 ```
 
@@ -106,7 +106,7 @@ put /cancel HTTP/1.1
 ```
 ```json
 {
-    "inspNo": "1",
+    "inspNo": "daa3849515a34362879e",
     "cancelAmt" : 1000
 }
 ```
@@ -115,8 +115,8 @@ put /cancel HTTP/1.1
 
 ```json
 {
-    "inspNo": "1",
-    "cardString": "tttttt"
+    "inspNo": "daa3849515a34362879e",
+    "cardString": " 446CANCEL    daa3849515a34362879e5388321411654321    000423123       1000000000009daa3849515a34362879e7+jgQ9LOauVZ7CGqye/Tnsu6dam87a+DccPjgYpQhc0=,UDtnCWJmyWFA26/So8nruA==,1CP2miRnidxfQhlnXY5CSA==                                                                                                                                                                                                                                                             "
 }
 ```
 
