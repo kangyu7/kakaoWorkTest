@@ -148,17 +148,15 @@ GET /select HTTP/1.1
 - Response
 
 ```json
-
 {
-    "inspNo": "1",
-    "cardNo": "",
     "exprYm": "0423",
-    "cvc": "563",
-    "type" : "PAYMENMT",
-    "payAmt" : 11000,
-    "vatAmt"  : 1000  
+    "cvc": "123",
+    "inspNo": "18b8c843f515492ea8db",
+    "vatAmt": "909",
+    "type": "PAYMENT",
+    "cardNo": "538832*******321",
+    "payAmt": "20000"
 }
-
 ```
 
 - 
