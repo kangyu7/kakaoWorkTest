@@ -54,7 +54,7 @@ $ java -jar build/libs/kakaopayTest-0.0.1-SNAPSHOT.jar
 
 ## 해결방법
 
-- 서버설정
+- 인코딩 및 H2 DB 설정
 ```
     #Encoding 
     server.servlet.encoding.charset=UTF-8
@@ -67,14 +67,24 @@ $ java -jar build/libs/kakaopayTest-0.0.1-SNAPSHOT.jar
     spring.datasource.password=pass
 ```
 
-- 요청과 응답은 json 형식으로 하기 위해 @RestController 및 @RequestBody 어노테이션을 사용한다.
-- 모든 요청은 DTO 클래스를 사용하고 @Valid 어노테이션으로 유효성 검증을 해준다. 
-- 결제/결제취소 등 비지니스 로직은 @Service 클래스에서 처리한다. 
-- 에러처리는 @RestControllerAdvice 를 이용하여 KakaopayControllerAdvice 클래스를 생성하여 처리하였다.
-- 카드사에 보내는 패킷에 대한 생성 및 처리는 CardPacket 클래스를 생성하여 공백 및 패킷 스트링을 만들어주는 일을 하게 만들었다. 
+- 요청과 응답은 json 형식으로 하기 위해 @RestController 및 @RequestBody 어노테이션을 사용
+- 모든 요청은 DTO 클래스를 사용하고 @Valid 어노테이션으로 유효성 검증
+- 결제/결제취소 등 비지니스 로직은 @Service 클래스에서 처리
+- 에러처리는 @RestControllerAdvice 를 이용하여 KakaopayControllerAdvice 클래스를 생성하여 처리
+- 카드사에 보내는 패킷에 대한 생성 및 처리는 CardPacket 클래스를 생성하여 공백 및 패킷 스트링을 만들어주는 일을 처리
 
-
-
+- Multi Thread 동시성 문제 해결
+  - DB로 해결하기로 하고 String 으로 된 키를 가지는 테이블 설정 
+  - 결제(카드번호), 취소(관리번호) 가 요청 들어오는 즉시 해당 데이터에 키가 존재하는지 확인하고 없으면 인서트 있으면 에러 발생
+  - jpa repository save 시에 발생하는 에러도 캐치하여 커스텀 메시지로 처리
+  - junit5 multi thread 설정하여 테스트 진행 KakaopayConcurrentTests 클래스로 테스트
+  - junit-platform.properties 파일을 생성해주고 아래 설정 추가
+```
+junit.jupiter.execution.parallel.enabled = true
+junit.jupiter.execution.parallel.mode.default = same_thread
+junit.jupiter.execution.parallel.mode.classes.default = concurrent
+```
+  -- test Class 에도 @Execution(ExecutionMode.CONCURRENT) 설정 추가하여 테스트 진행
 ### 1. 결제
 - Request
 
@@ -106,11 +116,11 @@ POST /pay HTTP/1.1
 
 - 
   - 요청이 들어올경우 UUID 클래스를 사용하여 랜덤키를 생성하고 20자리로 잘라서 관리번호(유니크 ID) 생성 
-  - 생성한 관리번호가 DB 에 있는지 조회하고 있으면 새로 생성한다. 
-  - 관리번호의 중복을 방어하기 위해서 먼저 인서트 처리를 하고 시작한다. 
-  - 카드데이터 암호화는 AES256 을 사용하여 암호화 하였다. 
+  - 생성한 관리번호가 DB 에 있는지 조회하고 있으면 새로 생성 
+  - 관리번호의 중복을 방어하기 위해서 먼저 인서트 처리
+  - 카드데이터 암호화는 AES256 을 사용하여 암호화
   - 카드데이터 암호화 구분자는 "," 로 하였다.
-  - 마지막으로 결제데이터에 대해 카드사 전송(DB) 저장을 해준다.
+  - 마지막으로 결제데이터에 대해 카드사 전송(DB 저장) 
  
 ### 2. 결제취소
 - Request
@@ -142,7 +152,7 @@ put /cancel HTTP/1.1
 - 
   - 먼저 해당 관리번호에 해당 하는 데이터를 전부 셀렉트 하여 결제 금액과 취소금액의 합을 구해준다
   - 그리고 취소 금액과 부가가치세등 금액 체크 로직을 거친다. 
-  - 마지막으로 취소 데이터에 대해 카드사 전송(DB) 저장을 해준다.
+  - 마지막으로 취소 데이터에 대해 카드사 전송(DB 저장)
 
 ### 3. 데이터조회
 - Request
