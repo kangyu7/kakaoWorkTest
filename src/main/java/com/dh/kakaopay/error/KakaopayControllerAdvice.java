@@ -20,8 +20,7 @@ public class KakaopayControllerAdvice {
 		
 		response.setStatus(re.getStatus().value());
 		KakaopayError rbsError = new KakaopayError();
-		rbsError.setStatus(re.getStatus().toString());
-		rbsError.setClassName(re.getClassName());
+		rbsError.setStatus(re.getStatus());
 		rbsError.setMessage(re.getMessage());
 		return rbsError;
 	}
@@ -31,8 +30,7 @@ public class KakaopayControllerAdvice {
 		
 		response.setStatus(HttpStatus.INTERNAL_SERVER_ERROR.value());
 		KakaopayError rbsError = new KakaopayError();
-		rbsError.setClassName(ex.getClass().getName());
-		rbsError.setStatus(HttpStatus.INTERNAL_SERVER_ERROR.toString());
+		rbsError.setStatus(HttpStatus.INTERNAL_SERVER_ERROR);
 		rbsError.setMessage(ex.getMessage());
 		return rbsError;
 	}

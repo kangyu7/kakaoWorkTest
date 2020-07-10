@@ -7,7 +7,6 @@ public class KakaopayException extends RuntimeException {
 	private static final long serialVersionUID = 1L;
 	
 	private HttpStatus status = HttpStatus.INTERNAL_SERVER_ERROR;
-	private String className;
 	private String message;
 	
 	public KakaopayException(String message) {
@@ -22,23 +21,6 @@ public class KakaopayException extends RuntimeException {
 	
 	public KakaopayException(Exception ex) {
 		this.message = ex.getMessage();
-	}
-
-	public KakaopayException(String className, Exception ex) {
-		this.className = className;
-		this.message = ex.getMessage();
-	}
-	
-	public KakaopayException(String className, String message) {
-		this.status = HttpStatus.BAD_REQUEST;
-		this.className = className;
-		this.message = message;
-	}
-
-	public KakaopayException(HttpStatus status, String className, String message) {
-		this.status = status;
-		this.className = className;
-		this.message = message;
 	}
 
 	public HttpStatus getStatus() {
@@ -59,12 +41,8 @@ public class KakaopayException extends RuntimeException {
 	}
 	
 	public String toString() {
-		return "status : " + status.toString() +
-			   " className : " + className +   
+		return "status : " + status +
 			   " message : " + message;
 	}
 	
-	public String getClassName() {
-		return className;
-	}
 }

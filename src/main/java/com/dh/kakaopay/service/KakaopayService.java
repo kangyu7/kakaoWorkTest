@@ -10,9 +10,11 @@ import java.util.stream.Stream;
 
 import javax.transaction.Transactional;
 
+import org.hibernate.exception.ConstraintViolationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
@@ -21,9 +23,11 @@ import com.dh.kakaopay.domain.CardCancelInputDto;
 import com.dh.kakaopay.domain.CardData;
 import com.dh.kakaopay.domain.CardInputDto;
 import com.dh.kakaopay.domain.CardSearchDto;
+import com.dh.kakaopay.domain.LockData;
 import com.dh.kakaopay.error.KakaopayException;
 import com.dh.kakaopay.packet.CardPacket;
 import com.dh.kakaopay.repository.CardDataRepository;
+import com.dh.kakaopay.repository.LockDataRepository;
 import com.dh.kakaopay.util.Tool;
 
 @Service
@@ -38,8 +42,26 @@ public class KakaopayService {
 	@Autowired
 	CardDataRepository cardDataRepository;
 	
-	@Transactional
+	@Autowired
+	LockDataRepository lockDataRepository;
+	
 	public Map<String, String> save(CardInputDto cardInputData) {
+		
+		//동일 카드번호 동시 처리 방지
+		if (lockDataRepository.existsById(cardInputData.getCardNo())) {
+			throw new KakaopayException("결제 처리 중입니다.");
+		}
+		
+		LockData lockData = new LockData();
+		lockData.setId(cardInputData.getCardNo());		
+		
+		try {
+
+			lockDataRepository.save(lockData);
+			
+		} catch (DataIntegrityViolationException e) {
+			throw new KakaopayException("결제 처리 중입니다.");
+		}
 		
 		CardData cardData = new CardData();
 
@@ -89,11 +111,30 @@ public class KakaopayService {
 		 Map<String, String> rtnMap = new HashMap<String, String>(); 
 		 rtnMap.put("inspNo", inspNo);
 		 rtnMap.put("cardString", cardPacket.outPacket());
+		 
+		 //동일 카드번호 동시 처리 해제 
+		 lockDataRepository.delete(lockData);
 		 return rtnMap;
 	}
 	
-	@Transactional
 	public Map<String, String> cancel(CardCancelInputDto cardCancelInputDto) {
+		
+		//동일 관리번호 동시 처리 방지
+		if (lockDataRepository.existsById(cardCancelInputDto.getInspNo())) {
+			throw new KakaopayException("취소 처리 중입니다.");
+		}
+		
+		LockData lockData = new LockData();
+		lockData.setId(cardCancelInputDto.getInspNo());		
+		
+		try {
+
+			lockDataRepository.save(lockData);
+			
+		} catch (DataIntegrityViolationException e) {
+			throw new KakaopayException("취소 처리 중입니다.");
+		}
+
 		
 		List<CardData> list = cardDataRepository.findByinspNo(cardCancelInputDto.getInspNo());
 		
@@ -184,10 +225,14 @@ public class KakaopayService {
 		cardData.setCardString(cardPacket.outPacket());
 		cardDataRepository.save(cardData);
 		
-		 Map<String, String> rtnMap = new HashMap<String, String>(); 
-		 rtnMap.put("inspNo", cardCancelInputDto.getInspNo());
-		 rtnMap.put("cardString", cardPacket.outPacket());
-		 return rtnMap;
+		Map<String, String> rtnMap = new HashMap<String, String>(); 
+		rtnMap.put("inspNo", cardCancelInputDto.getInspNo());
+		rtnMap.put("cardString", cardPacket.outPacket());
+		 
+		//동일 관리번호 동시 처리 해제 
+		lockDataRepository.delete(lockData);
+		 
+		return rtnMap;
 	}
 
 	public Map<String, String> find(CardSearchDto cardSearchDto) {

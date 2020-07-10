@@ -1,25 +1,18 @@
 package com.dh.kakaopay.error;
 
+import org.springframework.http.HttpStatus;
+
 public class KakaopayError {
 	
-	private String status;
-	private String className;
+	private HttpStatus status;
 	private String message;
 
-	public String getStatus() {
+	public HttpStatus getStatus() {
 		return status;
 	}
 	
-	public void setStatus(String status) {
+	public void setStatus(HttpStatus status) {
 		this.status = status;
-	}
-	
-	public void setClassName(String className) {
-		this.className = className;
-	}
-	
-	public String getClassName() {
-		return className;
 	}
 	
 	public String getMessage() {
