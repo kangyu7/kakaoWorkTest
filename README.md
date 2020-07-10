@@ -58,7 +58,7 @@ $ java -jar build/libs/kakaopayTest-0.0.1-SNAPSHOT.jar
 - 모든 요청은 DTO 클래스를 사용하고 @Valid 어노테이션으로 유효성 검증을 해준다. 
 - 결제/결제취소 등 비지니스 로직은 @Service 클래스에서 처리한다. 
 - 에러처리는 @RestControllerAdvice 를 이용하여 KakaopayControllerAdvice 클래스를 생성하여 처리하였다.
-
+- 카드사에 보내는 패킷에 대한 생성 및 처리는 CardPacket 클래스를 생성하여 공백 및 패킷 스트링을 만들어주는 일을 하게 만들었다. 
 ### 1. 결제
 - Request
 
