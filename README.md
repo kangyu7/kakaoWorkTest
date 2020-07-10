@@ -22,7 +22,7 @@
     - Postman
     - Junit5
     
-    ![pay테스트](https://user-images.githubusercontent.com/5583680/87118803-46273600-c2b7-11ea-8b40-41e84653e351.png)
+    ![pay테스트](https://user-images.githubusercontent.com/5583680/87119535-4d4f4380-c2b9-11ea-812b-3c68cdde8124.png)
 
 
 ## 빌드 및 실행하기
